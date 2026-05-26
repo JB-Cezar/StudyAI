@@ -1,6 +1,76 @@
-.venv/
-__pycache__/
-*.pyc
+# =============================================================================
+# StudyAI — arquivos que NÃO devem ir para o GitHub
+# =============================================================================
+
+# --- Segredos e credenciais (NUNCA subir) ---
 credentials.json
 token.json
 .streamlit/secrets.toml
+.env
+.env.*
+!.env.example
+
+# Modelos de configuração (podem subir — sem chaves reais)
+# credentials.json.example
+# .streamlit/secrets.toml.example
+
+# --- Ambiente Python ---
+.venv/
+venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# --- Streamlit ---
+.streamlit/cache/
+
+# --- Testes e cobertura ---
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# --- macOS ---
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# --- Windows ---
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# --- IDEs / editores ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+
+# --- Cursor (config local; opcional manter fora do repo) ---
+.cursor/
+
+# --- Logs e temporários ---
+*.log
+logs/
+tmp/
+temp/
+
+# --- Jupyter (se usar no futuro) ---
+.ipynb_checkpoints/
