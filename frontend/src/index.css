@@ -1,0 +1,65 @@
+:root {
+  --color-bg: #ffffff;
+  --color-surface: #f7f6fb;
+  --color-text: #1f1b2e;
+  --color-text-muted: #6b6375;
+  --color-border: #e5e4e7;
+  --color-primary: #7c3aed;
+  --color-primary-soft: rgba(124, 58, 237, 0.1);
+  --color-success: #15803d;
+  --color-success-soft: rgba(21, 128, 61, 0.1);
+  --color-danger: #b91c1c;
+  --color-danger-soft: rgba(185, 28, 28, 0.1);
+
+  font: 16px/1.5 system-ui, "Segoe UI", Roboto, sans-serif;
+  color-scheme: light dark;
+  color: var(--color-text);
+  background: var(--color-bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #16171d;
+    --color-surface: #1f2028;
+    --color-text: #f3f4f6;
+    --color-text-muted: #9ca3af;
+    --color-border: #2e303a;
+    --color-primary: #a78bfa;
+    --color-primary-soft: rgba(167, 139, 250, 0.15);
+    --color-success: #4ade80;
+    --color-success-soft: rgba(74, 222, 128, 0.12);
+    --color-danger: #f87171;
+    --color-danger-soft: rgba(248, 113, 113, 0.12);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+#root {
+  min-height: 100svh;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+p {
+  margin: 0;
+}
+
+button {
+  font-family: inherit;
+}

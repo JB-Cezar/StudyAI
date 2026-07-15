@@ -2,6 +2,11 @@
 
 Este guia é para o projeto de **agentes de IA** da faculdade: o StudyAI lê sua agenda e usa provas, aulas e entregas reais nas respostas.
 
+Desde a sub-etapa 8c da migração, **login e acesso ao Calendar acontecem juntos**: ao entrar
+com Google, você já concede acesso ao Calendar na mesma tela — não existe mais um botão
+separado de "Conectar Google Calendar". Cada usuário tem seu próprio token, guardado no MySQL
+(não é mais um arquivo `token.json` único compartilhado).
+
 ## 1. Google Cloud — criar credenciais
 
 1. Acesse [Google Cloud Console](https://console.cloud.google.com/).
@@ -11,45 +16,51 @@ Este guia é para o projeto de **agentes de IA** da faculdade: o StudyAI lê sua
    - Tipo: **Externo** (para testes com sua conta).
    - Preencha nome do app, e-mail de suporte e adicione seu e-mail como **usuário de teste**.
 5. **Credenciais** → **Criar credenciais** → **ID do cliente OAuth**:
-   - Tipo: **Aplicativo para computador** (Desktop).
-6. Baixe o JSON e renomeie para `credentials.json` na pasta do projeto:
+   - Tipo: **Aplicativo da Web**.
+   - Origens JavaScript autorizadas: `http://localhost:5173`
+   - URIs de redirecionamento autorizados: `http://localhost:8000/auth/google/callback`
+6. Copie o **Client ID** e o **Client Secret** para `backend/.env` (copie de `backend/.env.example`):
 
 ```
-StudyAI/
-  credentials.json   ← aqui
-  app2.py
-  calendar_service.py
+GOOGLE_CLIENT_ID=seu-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=seu-client-secret
+GOOGLE_LOGIN_REDIRECT_URI=http://localhost:8000/auth/google/callback
+FRONTEND_URL=http://localhost:5173
+JWT_SECRET=gere-com-python3-c-import-secrets-print-secrets.token_hex(32)
 ```
 
-> Não envie `credentials.json` nem `token.json` para o Git (já estão no `.gitignore`).
+> Não envie `backend/.env` para o Git (já está no `.gitignore`).
 
 ## 2. Chave do Gemini
 
-Crie o arquivo `.streamlit/secrets.toml` (copie de `.streamlit/secrets.toml.example`):
+No mesmo `backend/.env`:
 
-```toml
-GEMINI_API_KEY = "sua-chave"
 ```
-
-Ou no terminal:
-
-```bash
-export GEMINI_API_KEY="sua-chave"
+GEMINI_API_KEY=sua-chave
 ```
 
 ## 3. Rodar o app
 
 ```bash
 cd StudyAI
-source .venv/bin/activate
-streamlit run app2.py
+./backend/run.sh          # API em http://localhost:8000
 ```
 
-Na **barra lateral**, clique em **Conectar Google Calendar**. O navegador abre para você autorizar o acesso. Depois disso, o arquivo `token.json` é salvo e você não precisa logar de novo sempre.
+Em outro terminal:
+
+```bash
+cd StudyAI/frontend
+npm install                # só na primeira vez
+npm run dev                # frontend em http://localhost:5173
+```
+
+Na **barra lateral**, clique em **Entrar com Google**. O Google sempre mostra a tela de
+consentimento (mesmo se você já entrou antes) — isso é proposital, é o jeito de garantir que o
+backend recebe um `refresh_token` válido para usar o Calendar depois que você fechar o navegador.
 
 ## 4. Como o agente usa o calendário
 
-- Com a opção **Usar calendário nas respostas da IA** ativa, o StudyAI recebe seus próximos eventos no prompt.
+- Com a opção **Usar calendário nas respostas** ativa, o StudyAI recebe seus próximos eventos no prompt.
 - Ele pode sugerir: o que estudar hoje, como dividir a semana, alertas de prova perto, etc.
 - Os eventos aparecem em **Próximos compromissos** na barra lateral.
 
@@ -57,18 +68,19 @@ Na **barra lateral**, clique em **Conectar Google Calendar**. O navegador abre p
 
 | Erro | Solução |
 |------|---------|
-| `credentials.json` não encontrado | Siga o passo 1 e coloque o arquivo na raiz do projeto |
+| `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` ausentes | Configure `backend/.env` (passo 1) |
 | `access_denied` no login | Adicione seu Gmail em **Usuários de teste** na tela OAuth |
-| `GEMINI_API_KEY` ausente | Configure `secrets.toml` ou variável de ambiente |
-| Navegador não abre | Rode `streamlit run app2.py` no terminal local (não só no cloud) |
+| `invalid_grant: Missing code verifier` | Bug de PKCE já corrigido — se aparecer nesse projeto, é regressão, não configuração |
+| `Scope has changed` | A conta já tinha escopos concedidos a outro client_id do mesmo projeto; já mitigado (`OAUTHLIB_RELAX_TOKEN_SCOPE`) |
+| `GEMINI_API_KEY` ausente | Configure `backend/.env` |
 
 ## Criar eventos no calendário
 
-1. Antes de **Conectar**, marque **Pedir permissão para criar/alterar eventos**.
-2. Se você já conectou só com leitura: **Desconectar** → marque a opção → **Conectar** de novo.
-3. Na conversa, peça blocos de estudo; o StudyAI sugere horários e você confirma com **Criar: ...** antes de salvar.
-4. Ou use **Criar evento manualmente** na barra lateral.
+1. Na conversa, peça blocos de estudo; o StudyAI sugere horários e você confirma com **Criar: ...** antes de salvar.
+2. Ou use **Criar evento manualmente** na barra lateral.
+3. **Desconectar** apaga só o token do Calendar guardado no banco (você continua logado no app) — para reconectar, é só entrar com Google de novo.
 
 ## Memória da conversa
 
-O agente lembra a conversa atual até você clicar em **Nova conversa** na barra lateral.
+O agente lembra a conversa atual até você clicar em **Nova conversa** na barra lateral. Persiste
+no MySQL, isolada por usuário — sobrevive a reinícios do backend.

@@ -1,0 +1,40 @@
+.pending-actions {
+  border-top: 1px solid var(--color-border);
+  padding: 1rem 1.25rem;
+  background: var(--color-surface);
+}
+
+.pending-actions h3 {
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+}
+
+.pending-actions__hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.pending-actions__button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 0.5rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--color-primary);
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.pending-actions__button:hover:not(:disabled) {
+  background: var(--color-primary-soft);
+}
+
+.pending-actions__button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

@@ -5,7 +5,7 @@
 # --- Segredos e credenciais (NUNCA subir) ---
 credentials.json
 token.json
-.streamlit/secrets.toml
+**/.streamlit/secrets.toml
 .env
 .env.*
 !.env.example
@@ -65,6 +65,10 @@ Desktop.ini
 
 # --- Cursor (config local; opcional manter fora do repo) ---
 .cursor/
+
+# --- Claude Code (config/local; launch.json pode subir) ---
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
 
 # --- Logs e temporários ---
 *.log

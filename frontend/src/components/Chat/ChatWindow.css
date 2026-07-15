@@ -1,0 +1,19 @@
+.chat-window {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem;
+}
+
+.chat-window--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--color-text-muted);
+  padding: 2rem;
+}
+
+.message__bubble--thinking {
+  font-style: italic;
+  color: var(--color-text-muted);
+}

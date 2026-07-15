@@ -1,128 +1,114 @@
 """
-Integração com Google Calendar para o StudyAI.
- 
+Integração com Google Calendar para o StudyAI — por usuário.
+
+Sub-etapa 8c: o token de cada usuário vem do mesmo login OAuth Web (escopo
+Calendar incluso, ver app/auth/service.py) e fica salvo no banco
+(`google_credentials`), não mais num único `token.json` compartilhado.
+
 Responsável por:
-- Login OAuth (credentials.json + token.json)
+- Carregar/renovar as credenciais de um usuário a partir do banco
 - Ler eventos da agenda
-- Criar/atualizar eventos (com permissão de escrita)
+- Criar/atualizar eventos
 - Normalizar datas que a IA envia em formatos inválidos
 """
 
 from __future__ import annotations
 
+import json
+import os
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+from sqlalchemy.orm import Session
+
+from app.db.models import GoogleCredential
 
 # Fuso horário usado nos eventos (Brasil)
 TZ_SP = ZoneInfo("America/Sao_Paulo")
 
-# Caminhos dos arquivos na pasta do projeto
-BASE_DIR = Path(__file__).resolve().parent
-CREDENTIALS_FILE = BASE_DIR / "credentials.json"  # baixado do Google Cloud Console
-TOKEN_FILE = BASE_DIR / "token.json"  # gerado após o usuário autorizar no navegador
-
-# Escopos OAuth: só leitura ou leitura + escrita
-SCOPES_READONLY = ["https://www.googleapis.com/auth/calendar.readonly"]
-SCOPES_WRITE = ["https://www.googleapis.com/auth/calendar"]
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 
 
 class CalendarNotConfiguredError(Exception):
-    """credentials.json ausente ou inválido."""
+    """GOOGLE_CLIENT_ID/SECRET ausentes no .env (o app inteiro, não um usuário)."""
 
 
 class CalendarAuthError(Exception):
-    """Falha na autenticação OAuth."""
+    """Usuário não conectou o Google Calendar (ou o token não pôde ser renovado)."""
 
 
 def credentials_configured() -> bool:
-    """Verifica se o arquivo credentials.json existe na pasta do projeto."""
-    return CREDENTIALS_FILE.is_file()
+    return bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
 
 
-def _load_token_creds() -> Credentials | None:
-    """Carrega o token salvo após o login (sem forçar escopo na leitura)."""
-    if not TOKEN_FILE.is_file():
+def store_credentials(db: Session, user_id: int, credentials: Credentials) -> None:
+    """Salva (ou atualiza) o token OAuth do usuário — chamado no callback do login."""
+    row = db.get(GoogleCredential, user_id)
+    if row is None:
+        row = GoogleCredential(user_id=user_id, credentials_json=credentials.to_json())
+        db.add(row)
+    else:
+        row.credentials_json = credentials.to_json()
+    db.commit()
+
+
+def _load_credentials(db: Session, user_id: int) -> Credentials | None:
+    row = db.get(GoogleCredential, user_id)
+    if row is None:
         return None
     try:
-        return Credentials.from_authorized_user_file(str(TOKEN_FILE))
+        return Credentials.from_authorized_user_info(json.loads(row.credentials_json))
     except Exception:
         return None
 
 
-def has_write_access() -> bool:
-    """True se o usuário autorizou criar/editar eventos (não só ler)."""
-    creds = _load_token_creds()
+def has_write_access(db: Session, user_id: int) -> bool:
+    creds = _load_credentials(db, user_id)
     if not creds:
         return False
-    scopes = set(creds.scopes or [])
-    return "https://www.googleapis.com/auth/calendar" in scopes
+    return "https://www.googleapis.com/auth/calendar" in set(creds.scopes or [])
 
 
-def is_authenticated() -> bool:
-    """True se já existe token.json válido ou renovável."""
-    creds = _load_token_creds()
+def is_authenticated(db: Session, user_id: int) -> bool:
+    creds = _load_credentials(db, user_id)
     if not creds:
         return False
     return creds.valid or bool(creds.refresh_token)
 
 
-def get_credentials(*, interactive: bool = True, write: bool = False) -> Credentials:
-    """
-    Obtém credenciais Google: usa token.json, renova se expirou ou abre o navegador (OAuth).
-    write=True pede permissão para criar eventos; pode exigir reconectar se o token antigo
-    foi criado só com leitura.
-    """
+def get_credentials(db: Session, user_id: int) -> Credentials:
+    """Carrega o token do usuário, renovando (e regravando no banco) se necessário."""
     if not credentials_configured():
         raise CalendarNotConfiguredError(
-            "Coloque o arquivo credentials.json na pasta do projeto. "
-            "Veja SETUP_CALENDAR.md para instruções."
+            "GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET ausentes em backend/.env."
         )
 
-    scopes = SCOPES_WRITE if write else SCOPES_READONLY
-    creds = None
-    if TOKEN_FILE.is_file():
-        try:
-            creds = Credentials.from_authorized_user_file(str(TOKEN_FILE), scopes)
-        except Exception:
-            creds = None
-
-    if creds and creds.valid:
-        if write and not has_write_access():
-            if not interactive:
-                raise CalendarAuthError(
-                    "Permissão de escrita ausente. Desconecte e conecte de novo "
-                    "com a opção de criar eventos ativada."
-                )
-        elif not write or has_write_access():
-            return creds
-
-    if creds and creds.expired and creds.refresh_token:
-        creds.refresh(Request())
-        TOKEN_FILE.write_text(creds.to_json(), encoding="utf-8")
-        if not write or has_write_access():
-            return creds
-
-    if not interactive:
+    creds = _load_credentials(db, user_id)
+    if not creds:
         raise CalendarAuthError(
-            "Calendário não conectado. Clique em 'Conectar Google Calendar' na barra lateral."
+            "Google Calendar não conectado. Entre com Google novamente para conceder acesso."
         )
 
-    # Primeira vez ou token inválido: login no navegador
-    flow = InstalledAppFlow.from_client_secrets_file(str(CREDENTIALS_FILE), scopes)
-    creds = flow.run_local_server(port=0)
-    TOKEN_FILE.write_text(creds.to_json(), encoding="utf-8")
-    return creds
+    if creds.valid:
+        return creds
+
+    if creds.expired and creds.refresh_token:
+        creds.refresh(Request())
+        store_credentials(db, user_id, creds)
+        return creds
+
+    raise CalendarAuthError(
+        "Sessão do Google Calendar expirou. Entre com Google novamente."
+    )
 
 
-def get_calendar_service(*, interactive: bool = True, write: bool = False):
-    """Retorna o cliente da API Google Calendar v3."""
-    creds = get_credentials(interactive=interactive, write=write)
+def get_calendar_service(db: Session, user_id: int):
+    """Retorna o cliente da API Google Calendar v3 para este usuário."""
+    creds = get_credentials(db, user_id)
     return build("calendar", "v3", credentials=creds)
 
 
@@ -138,13 +124,14 @@ def _parse_event_start(event: dict) -> datetime | None:
 
 
 def list_upcoming_events(
+    db: Session,
+    user_id: int,
     *,
     days_ahead: int = 14,
     max_results: int = 20,
-    interactive: bool = True,
 ) -> list[dict]:
-    """Lista eventos do calendário principal nos próximos N dias."""
-    service = get_calendar_service(interactive=interactive, write=False)
+    """Lista eventos do calendário principal do usuário nos próximos N dias."""
+    service = get_calendar_service(db, user_id)
     now = datetime.now(timezone.utc)
     time_max = now + timedelta(days=days_ahead)
 
@@ -223,12 +210,13 @@ def normalize_calendar_action(action: dict) -> dict:
 
 
 def create_event(
+    db: Session,
+    user_id: int,
     *,
     title: str,
     start: str,
     end: str,
     description: str | None = None,
-    interactive: bool = True,
 ) -> dict:
     """Insere um novo evento no calendário principal do usuário."""
     start_norm = normalize_datetime_iso(start)
@@ -236,7 +224,7 @@ def create_event(
     if datetime.fromisoformat(end_norm) <= datetime.fromisoformat(start_norm):
         raise ValueError("O horário de término deve ser depois do início.")
 
-    service = get_calendar_service(interactive=interactive, write=True)
+    service = get_calendar_service(db, user_id)
     body: dict = {
         "summary": title,
         "start": _event_datetime_payload(start_norm),
@@ -245,27 +233,22 @@ def create_event(
     if description:
         body["description"] = description
 
-    return (
-        service.events()
-        .insert(calendarId="primary", body=body)
-        .execute()
-    )
+    return service.events().insert(calendarId="primary", body=body).execute()
 
 
 def update_event(
+    db: Session,
+    user_id: int,
     event_id: str,
     *,
     title: str | None = None,
     start: str | None = None,
     end: str | None = None,
     description: str | None = None,
-    interactive: bool = True,
 ) -> dict:
     """Atualiza um evento existente (disponível na API; a UI ainda não usa)."""
-    service = get_calendar_service(interactive=interactive, write=True)
-    existing = (
-        service.events().get(calendarId="primary", eventId=event_id).execute()
-    )
+    service = get_calendar_service(db, user_id)
+    existing = service.events().get(calendarId="primary", eventId=event_id).execute()
 
     if title:
         existing["summary"] = title
@@ -324,7 +307,9 @@ def format_action_label(action: dict) -> str:
     return f"{title} ({start} → {end})"
 
 
-def disconnect() -> None:
-    """Remove token.json — força novo login na próxima conexão."""
-    if TOKEN_FILE.is_file():
-        TOKEN_FILE.unlink()
+def disconnect(db: Session, user_id: int) -> None:
+    """Remove o token salvo do usuário — precisa entrar com Google de novo pra reconectar."""
+    row = db.get(GoogleCredential, user_id)
+    if row is not None:
+        db.delete(row)
+        db.commit()

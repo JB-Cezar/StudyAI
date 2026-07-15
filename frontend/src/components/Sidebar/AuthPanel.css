@@ -1,0 +1,49 @@
+.auth-panel__login {
+  display: block;
+  text-align: center;
+  padding: 0.5rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.auth-panel__user {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.auth-panel__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+.auth-panel__info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.auth-panel__name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.auth-panel__logout {
+  align-self: flex-start;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
