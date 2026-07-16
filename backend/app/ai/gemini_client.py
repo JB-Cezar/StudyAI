@@ -65,11 +65,20 @@ def obter_chave_gemini() -> str | None:
 
 
 def configurar_gemini() -> genai.GenerativeModel | None:
-    """Cria o modelo Gemini com o prompt de sistema (StudyAI)."""
+    """
+    Cria o modelo Gemini com o prompt de sistema (StudyAI).
+
+    transport="rest": a biblioteca usa gRPC por padrão, mas isso causou um
+    incidente real em produção (Render) — o canal gRPC falhava a validação
+    de metadata (`plugin_credentials.cc: Illegal header value`) e ficava
+    tentando de novo silenciosamente por minutos, sem erro visível nem pra
+    quem estava usando o chat nem nos logs de erro do FastAPI. REST evita
+    esse código de transporte problemático inteiramente.
+    """
     chave = obter_chave_gemini()
     if not chave:
         return None
-    genai.configure(api_key=chave)
+    genai.configure(api_key=chave, transport="rest")
     return genai.GenerativeModel(
         "gemini-2.5-flash",
         system_instruction=SYSTEM_PROMPT,
