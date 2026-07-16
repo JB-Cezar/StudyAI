@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import Iterator
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-DATABASE_URL = os.getenv(
+from app.core.env import clean_env
+
+DATABASE_URL = clean_env(
     "DATABASE_URL",
     "mysql+pymysql://studyai:studyai_dev_password@localhost:3306/studyai",
 )

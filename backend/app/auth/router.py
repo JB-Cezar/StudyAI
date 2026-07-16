@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import os
-
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.calendar import service as calendar_service
+from app.core.env import clean_env
 from app.db.models import User
 from app.db.session import get_db
 
@@ -18,7 +17,7 @@ from .dependencies import SESSION_COOKIE, get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+FRONTEND_URL = clean_env("FRONTEND_URL", "http://localhost:5173")
 STATE_COOKIE = "studyai_oauth_state"
 VERIFIER_COOKIE = "studyai_oauth_verifier"
 
@@ -27,7 +26,7 @@ VERIFIER_COOKIE = "studyai_oauth_verifier"
 # cross-site: precisa de SameSite=None (o browser só manda em fetch
 # cross-site com isso) + Secure (exigido pelo browser junto de SameSite=None,
 # e só funciona sobre HTTPS, que é o que produção usa).
-_IS_PRODUCTION = os.getenv("ENVIRONMENT", "development") == "production"
+_IS_PRODUCTION = clean_env("ENVIRONMENT", "development") == "production"
 
 
 def _cookie_security() -> dict:

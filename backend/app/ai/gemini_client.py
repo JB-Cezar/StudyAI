@@ -11,10 +11,11 @@ desatualizado.
 
 from __future__ import annotations
 
-import os
 from datetime import datetime
 
 import google.generativeai as genai
+
+from app.core.env import clean_env
 
 SYSTEM_PROMPT = """Você é o StudyAI, um agente de IA acadêmico para estudantes que se
 perdem nos estudos e nos trabalhos.
@@ -59,8 +60,8 @@ Regras do bloco:
 
 
 def obter_chave_gemini() -> str | None:
-    """Lê a chave da API da variável de ambiente GEMINI_API_KEY."""
-    return os.getenv("GEMINI_API_KEY")
+    """Lê a chave da API da variável de ambiente GEMINI_API_KEY (já sem espaços/quebras de linha)."""
+    return clean_env("GEMINI_API_KEY")
 
 
 def configurar_gemini() -> genai.GenerativeModel | None:

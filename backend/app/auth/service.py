@@ -21,6 +21,7 @@ from google_auth_oauthlib.flow import Flow
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.env import clean_env
 from app.db.models import User
 
 # oauthlib recusa o token por padrão se o Google devolver escopos diferentes
@@ -30,13 +31,13 @@ from app.db.models import User
 # aqui), então relaxamos essa checagem em vez de deixar o login quebrar.
 os.environ.setdefault("OAUTHLIB_RELAX_TOKEN_SCOPE", "1")
 
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-GOOGLE_LOGIN_REDIRECT_URI = os.getenv(
+GOOGLE_CLIENT_ID = clean_env("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = clean_env("GOOGLE_CLIENT_SECRET")
+GOOGLE_LOGIN_REDIRECT_URI = clean_env(
     "GOOGLE_LOGIN_REDIRECT_URI", "http://localhost:8000/auth/google/callback"
 )
 
-JWT_SECRET = os.getenv("JWT_SECRET")
+JWT_SECRET = clean_env("JWT_SECRET")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_DAYS = 7
 

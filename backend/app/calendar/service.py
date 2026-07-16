@@ -15,7 +15,6 @@ Responsável por:
 from __future__ import annotations
 
 import json
-import os
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -24,13 +23,14 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from sqlalchemy.orm import Session
 
+from app.core.env import clean_env
 from app.db.models import GoogleCredential
 
 # Fuso horário usado nos eventos (Brasil)
 TZ_SP = ZoneInfo("America/Sao_Paulo")
 
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+GOOGLE_CLIENT_ID = clean_env("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = clean_env("GOOGLE_CLIENT_SECRET")
 
 
 class CalendarNotConfiguredError(Exception):

@@ -1,5 +1,3 @@
-import os
-
 from dotenv import load_dotenv
 
 # Precisa rodar antes de importar os routers: app.auth.service lê
@@ -14,11 +12,12 @@ from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from app.ai.router import router as chat_router  # noqa: E402
 from app.auth.router import router as auth_router  # noqa: E402
 from app.calendar.router import router as calendar_router  # noqa: E402
+from app.core.env import clean_env  # noqa: E402
 
 app = FastAPI(title="StudyAI API")
 
-ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+ENVIRONMENT = clean_env("ENVIRONMENT", "development")
+FRONTEND_URL = clean_env("FRONTEND_URL", "http://localhost:5173")
 
 if ENVIRONMENT == "production":
     # Origem exata do frontend hospedado — nada de regex em produção.
