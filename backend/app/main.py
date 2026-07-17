@@ -1,3 +1,5 @@
+import logging
+
 from dotenv import load_dotenv
 
 # Precisa rodar antes de importar os routers: app.auth.service lê
@@ -5,6 +7,11 @@ from dotenv import load_dotenv
 # preguiçosamente, diferente do gemini_client), então o .env já tem que
 # estar carregado no momento do import.
 load_dotenv()
+
+# Sem isso, logger.exception() em módulos como app.ai.router não tem garantia
+# de aparecer no stdout capturado pelo Render — fica só no "handler de
+# último recurso" do Python, que nem sempre é visível.
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 from fastapi import FastAPI  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402

@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from google.api_core.exceptions import GoogleAPICallError
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger("studyai.chat")
 
 from app.auth.dependencies import get_current_user
 from app.calendar import service as cal
@@ -72,6 +76,11 @@ def send(
             detail="A IA está sobrecarregada no momento (limite da chave gratuita do Gemini). Tente de novo em alguns segundos.",
         ) from e
     except Exception as e:
+        # Traceback completo no log do servidor (Render → Logs) — sem isso,
+        # só sobra a mensagem curta de str(e), que não diz em qual linha/lib
+        # o erro aconteceu. Já gastamos tempo demais adivinhando por causa
+        # disso; a próxima ocorrência precisa ser rápida de diagnosticar.
+        logger.exception("Falha inesperada em POST /chat (user_id=%s)", user.id)
         raise HTTPException(status_code=500, detail=f"Erro ao gerar resposta: {e}") from e
 
     return ChatResponse(reply=texto_visivel, actions=acoes)
