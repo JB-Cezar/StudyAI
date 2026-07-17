@@ -17,21 +17,27 @@ from app.db.models import Conversation, Message
 
 from . import gemini_client as gemini
 
-_model: object | None = None
 _active_conversation_ids: dict[int, int] = {}
 
 
 def get_model():
-    """Cria o modelo Gemini uma vez e reaproveita nas chamadas seguintes."""
-    global _model
-    if _model is None:
-        _model = gemini.configurar_gemini()
-        if _model is None:
-            raise RuntimeError(
-                "GEMINI_API_KEY não configurada. Defina a variável de ambiente "
-                "ou crie backend/.env."
-            )
-    return _model
+    """
+    Cria um modelo Gemini novo a cada chamada — de propósito, não reaproveita
+    uma instância global entre requisições.
+
+    Um processo de backend fica de pé por dias em produção; um incidente real
+    (erro de codificação 'latin-1' vindo do cliente HTTP do Gemini, só depois
+    de muito uso acumulado no mesmo processo — sumiu com um simples restart)
+    sugere que reaproveitar a mesma sessão HTTP indefinidamente pode acumular
+    estado ruim. Recriar é barato (não faz chamada de rede) e evita esse risco.
+    """
+    modelo = gemini.configurar_gemini()
+    if modelo is None:
+        raise RuntimeError(
+            "GEMINI_API_KEY não configurada. Defina a variável de ambiente "
+            "ou crie backend/.env."
+        )
+    return modelo
 
 
 def _get_active_conversation_id(db: Session, user_id: int) -> int:
