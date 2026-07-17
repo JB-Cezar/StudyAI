@@ -82,18 +82,29 @@ def google_callback(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Falha no login com Google: {e}") from e
 
-    user = service.get_or_create_user(
-        db,
-        google_id=info["sub"],
-        email=info["email"],
-        name=info.get("name", info["email"]),
-        picture=info.get("picture"),
-    )
-    # Mesmo consentimento já inclui o escopo do Calendar (ver auth/service.py) —
-    # salva o token aqui pra não exigir uma segunda tela de permissão depois.
-    calendar_service.store_credentials(db, user.id, credentials)
-
-    token = service.create_session_token(user.id)
+    try:
+        user = service.get_or_create_user(
+            db,
+            google_id=info["sub"],
+            email=info["email"],
+            name=info.get("name", info["email"]),
+            picture=info.get("picture"),
+        )
+        # Mesmo consentimento já inclui o escopo do Calendar (ver
+        # auth/service.py) — salva o token aqui pra não exigir uma segunda
+        # tela de permissão depois.
+        calendar_service.store_credentials(db, user.id, credentials)
+        token = service.create_session_token(user.id)
+    except service.AuthNotConfiguredError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+    except Exception as e:
+        # Normalmente o banco fora do ar (ex.: instância gratuita "dormindo").
+        # Sem isso, essa falha vira um "Internal Server Error" genérico sem
+        # nenhuma pista de causa — já aconteceu em produção.
+        raise HTTPException(
+            status_code=503,
+            detail=f"Problema temporário no servidor (banco indisponível?). Tente de novo em instantes. Detalhe: {e}",
+        ) from e
 
     redirect = RedirectResponse(FRONTEND_URL)
     redirect.delete_cookie(STATE_COOKIE, **_cookie_security())

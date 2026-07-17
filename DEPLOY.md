@@ -56,5 +56,16 @@ plano gratuito. Ordem importa — cada peça depende da URL da anterior.
 
 - Plano gratuito do Render "dorme" o serviço depois de inatividade — a primeira requisição depois
   de um tempo pode demorar ~30s.
+- **O Aiven Free também desliga sozinho por inatividade** (aconteceu em produção: login parou de
+  funcionar com "Internal Server Error" cru, sem pista nenhuma). Diagnóstico: `dig
+  <host-do-aiven>` não resolve nada quando o serviço está desligado. Solução: painel do Aiven →
+  o serviço → botão **"Power on"**/"Start" — demora alguns minutos pra voltar (recria a máquina),
+  os dados continuam intactos. Depois disso, teste com
+  `mysql -h <host> -P <porta> -u avnadmin -p<senha> --ssl-mode=REQUIRED -e "SELECT 1;"` antes de
+  assumir que voltou.
 - `ENVIRONMENT=production` no backend ativa CORS restrito ao `FRONTEND_URL` exato e cookies
   `Secure` + `SameSite=None` (necessário porque Vercel e Render são domínios diferentes).
+- **Limite de taxa da chave gratuita do Gemini**: poucas requisições por minuto já derrubam com
+  `429 TooManyRequests`. Com vários usuários testando ao mesmo tempo, isso aparece como erro no
+  chat. Ativar faturamento no projeto do Google Cloud aumenta bastante o limite (a cota gratuita
+  mensal geralmente cobre o uso, mesmo com faturamento ativo).
