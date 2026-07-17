@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
+from google.api_core.exceptions import TooManyRequests
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -60,6 +61,14 @@ def send(
         )
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e)) from e
+    except TooManyRequests as e:
+        # Limite de taxa da chave gratuita do Gemini (poucas requisições por
+        # minuto). Mensagem específica em vez do genérico "erro ao gerar
+        # resposta" — isso já confundiu gente de verdade testando o app.
+        raise HTTPException(
+            status_code=429,
+            detail="Muitas mensagens ao mesmo tempo (limite da chave gratuita do Gemini). Tente de novo em alguns segundos.",
+        ) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao gerar resposta: {e}") from e
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { loginUrl } from "../api/auth";
 import * as calendarApi from "../api/calendar";
 import * as chatApi from "../api/chat";
+import { ApiError } from "../api/client";
 import type { CalendarAction, CalendarStatus, ChatMessage, User } from "../api/types";
 import { ChatInput } from "../components/Chat/ChatInput";
 import { ChatWindow } from "../components/Chat/ChatWindow";
@@ -53,9 +54,10 @@ export function ChatPage() {
       const { reply, actions } = await chatApi.sendMessage(text, usarCalendario, permitirCriar);
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
       setPendingActions(actions);
-    } catch {
+    } catch (e) {
       setMessages((prev) => prev.slice(0, -1));
-      setError("❌ Erro ao gerar resposta.");
+      const detail = e instanceof ApiError ? e.message : null;
+      setError(`❌ ${detail || "Erro ao gerar resposta."}`);
     } finally {
       setIsThinking(false);
     }
