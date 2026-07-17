@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
-from google.api_core.exceptions import TooManyRequests
+from google.api_core.exceptions import GoogleAPICallError
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -50,8 +50,8 @@ def send(
     if not texto:
         raise HTTPException(status_code=422, detail="Mensagem vazia.")
 
-    permitir_criar = body.permitir_criar and cal.has_write_access(db, user.id)
     try:
+        permitir_criar = body.permitir_criar and cal.has_write_access(db, user.id)
         texto_visivel, acoes = chat_service.send_message(
             db,
             user.id,
@@ -61,13 +61,15 @@ def send(
         )
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e)) from e
-    except TooManyRequests as e:
-        # Limite de taxa da chave gratuita do Gemini (poucas requisições por
-        # minuto). Mensagem específica em vez do genérico "erro ao gerar
-        # resposta" — isso já confundiu gente de verdade testando o app.
+    except GoogleAPICallError as e:
+        # Qualquer erro vindo da API do Gemini (limite de taxa, cota
+        # esgotada, indisponibilidade momentânea etc.) — GoogleAPICallError é
+        # a classe mãe de todos esses. Mensagem específica em vez do genérico
+        # "erro ao gerar resposta", que já confundiu gente de verdade
+        # testando o app sem entender que era passageiro.
         raise HTTPException(
             status_code=429,
-            detail="Muitas mensagens ao mesmo tempo (limite da chave gratuita do Gemini). Tente de novo em alguns segundos.",
+            detail="A IA está sobrecarregada no momento (limite da chave gratuita do Gemini). Tente de novo em alguns segundos.",
         ) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao gerar resposta: {e}") from e
